@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useNexus } from "@avail-project/nexus";
 import type {
-  BridgeParams,
-  BridgeResult,
+  TransferParams,
+  TransferResult,
   SimulationResult,
   UserAsset,
 } from "@avail-project/nexus";
@@ -18,20 +18,23 @@ const SUPPORTED_CHAINS = [
   { id: 84532, name: "Base Sepolia", symbol: "ETH" },
 ];
 
-const BRIDGE_TOKEN = "USDC";
+const TRANSFER_TOKEN = "USDC";
 
-export default function BridgeInterface() {
+export default function UsdcTransfer() {
   const { authenticated } = usePrivy();
   const { sdk } = useNexus();
 
   const [balances, setBalances] = useState<UserAsset[]>([]);
   const [amount, setAmount] = useState<string>("");
-  const [destinationChain, setDestinationChain] = useState<number>(11155420); // Default to Optimism Sepolia
+  const [recipient, setRecipient] = useState<string>("");
+  const [chainId, setChainId] = useState<number>(11155420); // Default to Optimism Sepolia
   const [simulation, setSimulation] = useState<SimulationResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [bridging, setBridging] = useState(false);
+  const [transferring, setTransferring] = useState(false);
   const [error, setError] = useState<string>("");
-  const [bridgeResult, setBridgeResult] = useState<BridgeResult | null>(null);
+  const [transferResult, setTransferResult] = useState<TransferResult | null>(
+    null
+  );
   const [isInitialized, setIsInitialized] = useState(false);
 
   const checkInitialization = async () => {
@@ -88,10 +91,17 @@ export default function BridgeInterface() {
     }
   }, [authenticated, sdk, isInitialized]);
 
-  // Simulate bridge when parameters change
+  // Simulate transfer when parameters change
   useEffect(() => {
-    const simulateBridge = async () => {
-      if (!sdk || !isInitialized || !amount || parseFloat(amount) <= 0) {
+    const simulateTransfer = async () => {
+      if (
+        !sdk ||
+        !isInitialized ||
+        !amount ||
+        parseFloat(amount) <= 0 ||
+        !recipient ||
+        !isValidAddress(recipient)
+      ) {
         setSimulation(null);
         return;
       }
@@ -100,11 +110,12 @@ export default function BridgeInterface() {
       setError("");
 
       try {
-        const result = await sdk.simulateBridge({
-          token: BRIDGE_TOKEN,
+        const result = await sdk.simulateTransfer({
+          token: TRANSFER_TOKEN,
           amount: parseFloat(amount),
-          chainId: destinationChain as any, // Type assertion to avoid chain ID type issues
-        });
+          chainId: chainId as any,
+          recipient: recipient,
+        } as TransferParams);
         setSimulation(result);
       } catch (error) {
         console.error("Simulation failed:", error);
@@ -116,61 +127,74 @@ export default function BridgeInterface() {
     };
 
     // Debounce simulation calls
-    const timer = setTimeout(simulateBridge, 500);
+    const timer = setTimeout(simulateTransfer, 500);
     return () => clearTimeout(timer);
-  }, [sdk, isInitialized, amount, destinationChain]);
+  }, [sdk, isInitialized, amount, recipient, chainId]);
 
-  const handleBridge = async () => {
-    if (!sdk || !amount || parseFloat(amount) <= 0) return;
+  const isValidAddress = (address: string): boolean => {
+    return /^0x[a-fA-F0-9]{40}$/.test(address);
+  };
 
-    setBridging(true);
+  const handleTransfer = async () => {
+    if (
+      !sdk ||
+      !amount ||
+      parseFloat(amount) <= 0 ||
+      !recipient ||
+      !isValidAddress(recipient)
+    )
+      return;
+
+    setTransferring(true);
     setError("");
-    setBridgeResult(null);
+    setTransferResult(null);
 
     try {
-      const result: BridgeResult = await sdk.bridge({
-        token: BRIDGE_TOKEN,
+      const result: TransferResult = await sdk.transfer({
+        token: TRANSFER_TOKEN,
         amount: parseFloat(amount),
-        chainId: destinationChain as any, // Type assertion to avoid chain ID type issues
-      } as BridgeParams);
+        chainId: chainId as any,
+        recipient: recipient,
+      } as TransferParams);
 
-      setBridgeResult(result);
+      setTransferResult(result);
 
       if (result.success) {
-        console.log("✅ Bridge successful!", result);
+        console.log("✅ Transfer successful!", result);
         if (result.explorerUrl) {
           console.log("View transaction:", result.explorerUrl);
         }
 
         // Reset form on success
         setAmount("");
+        setRecipient("");
         setSimulation(null);
 
         // Refresh balances
         const updatedBalances = await sdk.getUnifiedBalances();
         setBalances(updatedBalances);
       } else {
-        console.error("❌ Bridge failed:", result.error);
-        setError(result.error || "Bridge operation failed");
+        console.error("❌ Transfer failed:", result.error);
+        setError(result.error || "Transfer operation failed");
       }
     } catch (error) {
-      console.error("❌ Bridge error:", error);
+      console.error("❌ Transfer error:", error);
       setError(
-        error instanceof Error ? error.message : "Bridge operation failed"
+        error instanceof Error ? error.message : "Transfer operation failed"
       );
     } finally {
-      setBridging(false);
+      setTransferring(false);
     }
   };
 
-  const usdcBalance = balances.find((b) => b.symbol === BRIDGE_TOKEN);
+  const usdcBalance = balances.find((b) => b.symbol === TRANSFER_TOKEN);
   const maxAmount = usdcBalance ? parseFloat(usdcBalance.balance) : 0;
 
   if (!authenticated) {
     return (
       <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
         <p className="text-yellow-800 dark:text-yellow-200">
-          🔐 Please connect your wallet to use the bridge
+          🔐 Please connect your wallet to use USDC transfer
         </p>
       </div>
     );
@@ -194,7 +218,7 @@ export default function BridgeInterface() {
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-6">
       <div className="flex items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-          🌉 USDC Cross-Chain Bridge
+          💸 USDC Transfer
         </h2>
       </div>
 
@@ -245,14 +269,37 @@ export default function BridgeInterface() {
           )}
         </div>
 
-        {/* Destination Chain */}
+        {/* Recipient Address */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Destination Chain
+            Recipient Address
+          </label>
+          <input
+            type="text"
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+            placeholder="0x..."
+            className={`w-full p-3 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              recipient && !isValidAddress(recipient)
+                ? "border-red-300 dark:border-red-600"
+                : "border-gray-300 dark:border-gray-600"
+            }`}
+          />
+          {recipient && !isValidAddress(recipient) && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+              Please enter a valid Ethereum address
+            </p>
+          )}
+        </div>
+
+        {/* Chain Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Target Chain
           </label>
           <select
-            value={destinationChain}
-            onChange={(e) => setDestinationChain(parseInt(e.target.value))}
+            value={chainId}
+            onChange={(e) => setChainId(parseInt(e.target.value))}
             className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             {SUPPORTED_CHAINS.map((chain) => (
@@ -269,7 +316,7 @@ export default function BridgeInterface() {
             <div className="flex items-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
               <p className="text-blue-800 dark:text-blue-200 text-sm">
-                Calculating bridge costs...
+                Calculating transfer costs...
               </p>
             </div>
           </div>
@@ -278,18 +325,22 @@ export default function BridgeInterface() {
         {simulation && (
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
             <h3 className="font-medium text-green-800 dark:text-green-200 mb-2">
-              📊 Bridge Preview
+              📊 Transfer Preview
             </h3>
             <div className="space-y-1 text-sm text-green-700 dark:text-green-300">
+              <p>Amount to send: {amount} USDC</p>
               <p>
-                Amount to receive: {(simulation as any).amountOut || amount}{" "}
-                USDC
+                Recipient: {recipient.slice(0, 6)}...{recipient.slice(-4)}
+              </p>
+              <p>
+                Target chain:{" "}
+                {SUPPORTED_CHAINS.find((c) => c.id === chainId)?.name}
               </p>
               {(simulation as any).estimatedGas && (
                 <p>Estimated gas: {(simulation as any).estimatedGas}</p>
               )}
-              {(simulation as any).bridgeFee && (
-                <p>Bridge fee: {(simulation as any).bridgeFee}</p>
+              {(simulation as any).transferFee && (
+                <p>Transfer fee: {(simulation as any).transferFee}</p>
               )}
               {(simulation as any).estimatedTime && (
                 <p>Estimated time: {(simulation as any).estimatedTime}</p>
@@ -298,47 +349,44 @@ export default function BridgeInterface() {
           </div>
         )}
 
-        {/* Bridge Result */}
-        {bridgeResult && (
+        {/* Transfer Result */}
+        {transferResult && (
           <div
             className={`border rounded-lg p-4 ${
-              bridgeResult.success
+              transferResult.success
                 ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
                 : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
             }`}
           >
             <h3
               className={`font-medium mb-2 ${
-                bridgeResult.success
+                transferResult.success
                   ? "text-green-800 dark:text-green-200"
                   : "text-red-800 dark:text-red-200"
               }`}
             >
-              {bridgeResult.success
-                ? "✅ Bridge Successful!"
-                : "❌ Bridge Failed"}
+              {transferResult.success
+                ? "✅ Transfer Successful!"
+                : "❌ Transfer Failed"}
             </h3>
             <div
               className={`space-y-1 text-sm ${
-                bridgeResult.success
+                transferResult.success
                   ? "text-green-700 dark:text-green-300"
                   : "text-red-700 dark:text-red-300"
               }`}
             >
-              {bridgeResult.success ? (
+              {transferResult.success ? (
                 <>
                   <p>
-                    Your USDC has been successfully bridged to{" "}
-                    {
-                      SUPPORTED_CHAINS.find((c) => c.id === destinationChain)
-                        ?.name
-                    }
-                    !
+                    Your USDC has been successfully transferred to{" "}
+                    {recipient.slice(0, 6)}...{recipient.slice(-4)} on{" "}
+                    {SUPPORTED_CHAINS.find((c) => c.id === chainId)?.name}!
                   </p>
-                  {bridgeResult.explorerUrl && (
+                  {transferResult.explorerUrl && (
                     <div className="mt-2">
                       <a
-                        href={bridgeResult.explorerUrl}
+                        href={transferResult.explorerUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 underline"
@@ -363,8 +411,8 @@ export default function BridgeInterface() {
                 </>
               ) : (
                 <p>
-                  {bridgeResult.error ||
-                    "An unknown error occurred during the bridge operation."}
+                  {transferResult.error ||
+                    "An unknown error occurred during the transfer operation."}
                 </p>
               )}
             </div>
@@ -372,34 +420,37 @@ export default function BridgeInterface() {
         )}
 
         {/* Error Display */}
-        {error && !bridgeResult && (
+        {error && !transferResult && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
             <p className="text-red-800 dark:text-red-200 text-sm">❌ {error}</p>
           </div>
         )}
 
-        {/* Bridge Button */}
+        {/* Transfer Button */}
         <button
-          onClick={handleBridge}
+          onClick={handleTransfer}
           disabled={
             !amount ||
             parseFloat(amount) <= 0 ||
             parseFloat(amount) > maxAmount ||
-            bridging ||
+            !recipient ||
+            !isValidAddress(recipient) ||
+            transferring ||
             loading ||
             maxAmount <= 0
           }
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
+          className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors"
         >
-          {bridging ? (
+          {transferring ? (
             <div className="flex items-center justify-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              <span>Bridging...</span>
+              <span>Transferring...</span>
             </div>
           ) : (
-            `Bridge ${amount || "0"} USDC to ${
-              SUPPORTED_CHAINS.find((c) => c.id === destinationChain)?.name ||
-              "Chain"
+            `Transfer ${amount || "0"} USDC to ${
+              recipient
+                ? `${recipient.slice(0, 6)}...${recipient.slice(-4)}`
+                : "recipient"
             }`
           )}
         </button>
@@ -408,9 +459,10 @@ export default function BridgeInterface() {
       {/* Info Section */}
       <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <p className="text-blue-800 dark:text-blue-200 text-sm">
-          💡 <strong>Testnet Bridge:</strong> Nexus automatically selects the
-          best route from your available USDC balances across all testnet
-          chains. You only need to specify the destination chain and amount.
+          💡 <strong>Testnet Transfer:</strong> Nexus will automatically route
+          your USDC from the best available source chain to the target chain and
+          recipient address. The transfer may involve cross-chain bridging if
+          needed.
         </p>
       </div>
 

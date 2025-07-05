@@ -4,6 +4,7 @@ import Image from "next/image";
 import { usePrivy } from "@privy-io/react-auth";
 import NexusDashboard from "./components/NexusDashboard";
 import BridgeInterface from "./components/BridgeInterface";
+import UsdcTransfer from "./components/UsdcTransfer";
 
 export default function Home() {
   const { ready, authenticated, user } = usePrivy();
@@ -64,10 +65,17 @@ export default function Home() {
           </div>
         )}
 
-        {/* Nexus Dashboard - only show when authenticated */}
+        {/* Bridge Interface - only show when authenticated */}
         {ready && (
           <div className="w-full max-w-6xl">
             <BridgeInterface />
+          </div>
+        )}
+
+        {/* USDC Transfer - only show when authenticated */}
+        {ready && (
+          <div className="w-full max-w-6xl">
+            <UsdcTransfer />
           </div>
         )}
 

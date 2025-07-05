@@ -231,3 +231,8 @@ config={{
 ## License
 
 MIT License - see LICENSE file for details.
+
+const USDC_CONTRACT_ADDRESS =
+"0x1c7d4b196cb0c7b01d743fbc6116a902379c7238" as const;
+const HALO_PAYMENT_CONTRACT_ADDRESS =
+"0xEC0250Af17481f9cB405081D49Fb9228769B3092" as const;

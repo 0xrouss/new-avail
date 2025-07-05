@@ -9,8 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@arx-research/libhalo": "^1.12.1",
     "@avail-project/nexus": "^0.1.1-dev.2",
     "@privy-io/react-auth": "^2.17.3",
+    "libhalo": "arx-research/libhalo",
     "next": "15.3.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
