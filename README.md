@@ -1,36 +1,233 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# New Avail - Cross-Chain DApp
 
-## Getting Started
+A modern cross-chain decentralized application built with **Privy** authentication and **Avail Nexus** SDK for seamless multi-chain operations.
 
-First, run the development server:
+## Features
+
+🔐 **Privy Authentication**
+
+- Email, wallet, and SMS login options
+- Embedded wallet creation
+- Secure user management
+
+🌉 **Avail Nexus Integration**
+
+- Cross-chain token bridging
+- Unified balance management across 16+ chains
+- Direct token transfers
+- Smart contract execution
+- Bridge & Execute workflows
+
+🎨 **Modern UI**
+
+- Beautiful Tailwind CSS design
+- Dark/light mode support
+- Responsive design
+- Real-time balance updates
+
+## Quick Start
+
+### 1. Clone and Install
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+git clone <your-repo>
+cd new-avail
+bun install
+```
+
+### 2. Configure Privy
+
+1. Create a [Privy account](https://dashboard.privy.io/)
+2. Create a new app in the Privy Dashboard
+3. Copy your App ID
+4. Create a `.env.local` file:
+
+```bash
+NEXT_PUBLIC_PRIVY_APP_ID=your-privy-app-id
+```
+
+### 3. Run the Application
+
+```bash
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit `http://localhost:3000` to see your app!
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Architecture
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Provider Stack
 
-## Learn More
+```
+PrivyProvider (Authentication)
+  └── NexusProvider (Cross-chain operations)
+      └── WalletBridge (Connects Privy wallet to Nexus)
+          └── App Components
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Key Components
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **`PrivyProvider`** - Handles user authentication and embedded wallets
+- **`NexusProvider`** - Provides cross-chain functionality
+- **`WalletBridge`** - Connects Privy's embedded wallet to Nexus SDK
+- **`Header`** - Navigation with connect/disconnect button
+- **`NexusDashboard`** - Portfolio overview and cross-chain actions
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Usage Examples
 
-## Deploy on Vercel
+### Bridge Tokens
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```typescript
+import { BridgeButton } from "@avail-project/nexus";
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+<BridgeButton prefill={{ chainId: 137, token: "USDC", amount: "100" }}>
+  {({ onClick, isLoading }) => (
+    <button onClick={onClick} disabled={isLoading}>
+      {isLoading ? "Bridging..." : "Bridge to Polygon"}
+    </button>
+  )}
+</BridgeButton>;
+```
+
+### Transfer Tokens
+
+```typescript
+import { TransferButton } from "@avail-project/nexus";
+
+<TransferButton>
+  {({ onClick }) => <button onClick={onClick}>Send Funds</button>}
+</TransferButton>;
+```
+
+### Bridge & Execute
+
+```typescript
+import { BridgeAndExecuteButton } from "@avail-project/nexus";
+
+<BridgeAndExecuteButton
+  contractAddress="0x..."
+  contractAbi={abi}
+  functionName="deposit"
+  buildFunctionParams={(token, amount, chainId, userAddress) => ({
+    functionParams: [token, amount, userAddress, 0],
+    value: "0",
+  })}
+>
+  {({ onClick, isLoading }) => (
+    <button onClick={onClick} disabled={isLoading}>
+      Bridge & Execute
+    </button>
+  )}
+</BridgeAndExecuteButton>;
+```
+
+## Supported Networks
+
+### Mainnet
+
+- Ethereum (1)
+- Optimism (10)
+- Polygon (137)
+- Arbitrum (42161)
+- Avalanche (43114)
+- Base (8453)
+- Scroll (534352)
+
+### Testnet
+
+- Optimism Sepolia (11155420)
+- Polygon Amoy (80002)
+- Arbitrum Sepolia (421614)
+- Base Sepolia (84532)
+
+## Environment Variables
+
+```bash
+# Required
+NEXT_PUBLIC_PRIVY_APP_ID=your-privy-app-id
+
+# Optional
+NEXT_PUBLIC_APP_LOGO_URL=https://your-logo-url.com/logo.png
+```
+
+## Development
+
+### Project Structure
+
+```
+app/
+├── components/
+│   ├── Header.tsx              # Navigation with connect button
+│   ├── PrivyProvider.tsx       # Privy authentication wrapper
+│   ├── NexusProvider.tsx       # Nexus cross-chain wrapper
+│   ├── WalletBridge.tsx        # Connects Privy to Nexus
+│   └── NexusDashboard.tsx      # Portfolio and cross-chain UI
+├── globals.css                 # Global styles
+├── layout.tsx                  # Root layout with providers
+└── page.tsx                    # Main page
+```
+
+### Key Dependencies
+
+- **Next.js 15** - React framework
+- **@privy-io/react-auth** - Authentication and embedded wallets
+- **@avail-project/nexus** - Cross-chain operations
+- **Tailwind CSS** - Styling
+- **TypeScript** - Type safety
+
+## Customization
+
+### Privy Configuration
+
+Edit `app/components/PrivyProvider.tsx`:
+
+```typescript
+config={{
+  appearance: {
+    theme: 'light',
+    accentColor: '#676FFF',
+    logo: 'your-logo-url',
+  },
+  loginMethods: ['email', 'wallet', 'sms'],
+  embeddedWallets: {
+    createOnLogin: 'users-without-wallets',
+  },
+}}
+```
+
+### Nexus Configuration
+
+Edit `app/components/NexusProvider.tsx`:
+
+```typescript
+config={{
+  network: 'testnet', // or 'mainnet'
+}}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"Configuration Required" error**
+
+   - Make sure `NEXT_PUBLIC_PRIVY_APP_ID` is set in `.env.local`
+
+2. **Wallet not connecting to Nexus**
+
+   - Check browser console for connection errors
+   - Ensure user has completed Privy authentication
+
+3. **Balance loading issues**
+   - Verify wallet has testnet tokens
+   - Check network connectivity
+
+### Getting Help
+
+- [Privy Documentation](https://docs.privy.io/)
+- [Avail Nexus Documentation](https://github.com/availproject/nexus)
+- [Avail Documentation](https://docs.availproject.org/)
+
+## License
+
+MIT License - see LICENSE file for details.
